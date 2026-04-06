@@ -62,36 +62,140 @@ void handleRoot() {
 
   String html = R"rawliteral(
 <!DOCTYPE html>
-<html lang = "pt-br">
+<html lang="pt-br">
 <head>
-<meta charset = "utf-8">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+.container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 90%;
+}
+
+button {
+  width: 40px;
+  height: 40px;
+  font-size: 20px;
+}
+
+#warning {
+  color: red;
+  font-weight: bold;
+  margin-top: 10px;
+}
+
+#maximo {
+  color: green;
+  font-weight: bold;
+  margin-top: 10px;
+}
+
+</style>
+
 </head>
 <body>
 
-<h2>Gerador de Onda - ESP32</h2>
+<h2>Gerador de Frequências</h2>
 
-Frequência: <span id="freqValue">10</span> Hz<br>
-<input type="range" min="10" max="800" value="10" id="freq" style="width:90%">
+<!-- Frequência -->
+Frequência: <span id="freqValue">10 Hz</span><br>
+
+<div class="container">
+  <button onclick="changeFreq(-1)">-</button>
+  <input type="range" min="10" max="800" value="10" id="freq" style="width:100%">
+  <button onclick="changeFreq(1)">+</button>
+</div>
 
 <br><br>
 
-Amplitude: <span id="ampValue">50</span><br>
-<input type="range" min="0" max="127" value="50" id="amp" style="width:90%">
+<!-- Amplitude -->
+Amplitude: <span id="ampValue">39.4%</span><br>
+
+<div class="container">
+  <button onclick="changeAmp(-1)">-</button>
+  <input type="range" min="0" max="127" value="50" id="amp" style="width:100%">
+  <button onclick="changeAmp(1)">+</button>
+</div>
+
+<br><br>
+
+<div id="warning"></div>
+<div id="maximo"></div>
 
 <script>
 
 let freq = document.getElementById("freq");
 let amp = document.getElementById("amp");
 
+// Slider direto
 freq.oninput = function(){
-document.getElementById("freqValue").innerHTML = this.value;
-fetch("/set?freq=" + this.value);
+  updateFreq(this.value);
 }
 
 amp.oninput = function(){
-document.getElementById("ampValue").innerHTML = this.value;
-fetch("/set?amp=" + this.value);
+  updateAmp(this.value);
+}
+
+// Atualiza frequência
+function updateFreq(value){
+  freq.value = value;
+  document.getElementById("freqValue").innerHTML = value + " Hz";
+  fetch("/set?freq=" + value);
+}
+
+// Atualiza amplitude (modo osciloscópio)
+function updateAmp(value){
+  amp.value = value;
+
+  let percent = (value / 127) * 100;
+  percent = percent.toFixed(1);
+
+  // Tensão aproximada (DAC 0–3.3V)
+/*
+  let voltage = (value / 127) * 3.3;
+  voltage = voltage.toFixed(2);
+  
+  document.getElementById("ampValue").innerHTML =
+  value + " (" + percent + "% | " + voltage + " V)";
+*/
+  
+  document.getElementById("ampValue").innerHTML = percent + "%";
+  
+  // Mensagem de aviso
+  if(value == 0){
+    document.getElementById("warning").innerHTML = "Tensão de saída em 0V, amplitude zerada. Impossível gerar frequência.";
+    document.getElementById("maximo").innerHTML = "";
+  } 
+  else {
+    if(value == 127){
+      document.getElementById("maximo").innerHTML = "Tensão de saída em 3,3V. Amplitude máxima atingida.";
+      document.getElementById("warning").innerHTML = "";
+    }
+    else {
+      document.getElementById("warning").innerHTML = "";
+      document.getElementById("maximo").innerHTML = "";
+    }
+  }
+  
+  fetch("/set?amp=" + value);
+}
+
+// Botões
+function changeFreq(step){
+  let newValue = parseInt(freq.value) + step;
+  if(newValue >= freq.min && newValue <= freq.max){
+    updateFreq(newValue);
+  }
+}
+
+function changeAmp(step){
+  let newValue = parseInt(amp.value) + step;
+  if(newValue >= amp.min && newValue <= amp.max){
+    updateAmp(newValue);
+  }
 }
 
 </script>
